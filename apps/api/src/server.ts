@@ -4,6 +4,8 @@ import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import path from 'node:path';
+import fs from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import bcrypt from 'bcryptjs';
 import { z } from 'zod';
 import { initDatabase, pool, query } from './db.js';
@@ -18,10 +20,10 @@ import { dashboardRouter } from './routes/dashboard.routes.js';
 
 const app=express();
 app.disable('x-powered-by');
-app.set('trust proxy',process.env.TRUST_PROXY==='true'?1:false);
+app.set('trust proxy',process.env.TRUST_PROXY==='false'?false:1);
 app.use(helmet({crossOriginResourcePolicy:{policy:'cross-origin'},contentSecurityPolicy:process.env.NODE_ENV==='production'?undefined:false}));
 const origins=(process.env.WEB_ORIGIN||'http://localhost:5173').split(',').map(v=>v.trim()).filter(Boolean);
-app.use(cors({origin:(origin,cb)=>{if(!origin||origins.includes(origin)){cb(null,true);return;}cb(new Error('Origin is not allowed by CORS.'));},credentials:true,methods:['GET','POST','PUT','PATCH','DELETE','OPTIONS']}));
+app.use(cors({origin:(origin,cb)=>{if(!origin||origins.includes('*')||origins.includes(origin)){cb(null,true);return;}cb(new Error('Origin is not allowed by CORS.'));},credentials:true,methods:['GET','POST','PUT','PATCH','DELETE','OPTIONS']}));
 app.use(express.json({limit:'1mb'}));
 app.use(express.urlencoded({extended:false,limit:'128kb'}));
 app.use(rateLimit({windowMs:15*60*1000,limit:Number(process.env.API_RATE_LIMIT||600),standardHeaders:'draft-7',legacyHeaders:false}));
@@ -39,6 +41,20 @@ app.use('/api/advertisements',adsRouter);
 app.use('/api/public/advertisements',publicAdsRouter);
 
 app.use('/api',(_req,res)=>res.status(404).json({error:'API endpoint not found.'}));
+
+const webDistCandidates = [
+  path.resolve(process.cwd(), 'apps/web/dist'),
+  path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../web/dist'),
+  path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../apps/web/dist'),
+];
+const webDistPath = webDistCandidates.find(p => fs.existsSync(p));
+if (webDistPath) {
+  app.use(express.static(webDistPath));
+  app.get('*', (req, res, next) => {
+    if (req.path.startsWith('/api')) return next();
+    res.sendFile(path.join(webDistPath, 'index.html'));
+  });
+}
 app.use((err:unknown,_req:express.Request,res:express.Response,_next:express.NextFunction)=>{
   const error=err instanceof Error?err:new Error('Unexpected server error');
   console.error('[api-error]',error.message);

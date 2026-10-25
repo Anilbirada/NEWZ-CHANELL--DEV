@@ -11,7 +11,7 @@ import {
 
 type ArticleStatus = 'Published' | 'Pending review' | 'Draft' | 'Rejected';
 type Story = { id: string; title: string; category: string; language: 'Kannada' | 'English'; author: string; date: string; status: ArticleStatus; image: string; views: string; excerpt: string; titleEn?: string; titleKn?: string; excerptEn?: string; excerptKn?: string; subtitle?: string; body?: string; bodyEn?: string; bodyKn?: string };
-type Screen = 'Dashboard' | 'Stories' | 'E-Paper editions' | 'Page editor' | 'Media library' | 'Advertisements' | 'Settings';
+type Screen = 'Dashboard' | 'Stories' | 'E-Paper editions' | 'Page editor' | 'Media library' | 'Advertisements' | 'Settings' | 'Public';
 
 const imageUrls = {
   city: 'https://images.unsplash.com/photo-1596176530529-78163a4f7af2?auto=format&fit=crop&w=1200&q=85',

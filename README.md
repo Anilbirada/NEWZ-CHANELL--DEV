@@ -242,28 +242,71 @@ Once both servers are running, open your browser:
 
 ---
 
-## 📦 Production Build & Deployment
+## 🚀 Deploying to Render (`render.com`)
 
-To compile and verify all workspaces for production:
+The application is pre-configured with a Render Blueprint specification (`render.yaml`) and supports running both the backend API and frontend React SPA as a unified production service.
 
-```bash
-# 1. Run strict TypeScript checks across all packages
-npm run typecheck
+### Option 1: Automated 1-Click Blueprint Deployment (Recommended)
 
-# 2. Build backend and frontend bundles
-npm run build
+1. Push this repository to your GitHub account.
+2. Sign in to [Render Dashboard](https://dashboard.render.com/).
+3. Click **New +** and select **Blueprint**.
+4. Connect your repository (`Anilbirada/NEWZ-CHANELL--DEV`).
+5. Render reads `render.yaml` and automatically creates:
+   - A managed **PostgreSQL Database** (`vachana-kranti-db`)
+   - A **Web Service** with auto-generated secure secrets and the database pre-linked.
+6. Click **Apply**. Render will automatically build, provision the database, seed the admin account, and launch the site.
 
-# 3. Start the production backend server
-npm run start
-```
+---
 
-### Production Checklist
-- Update `NODE_ENV=production`.
-- Generate a cryptographically secure 64-character `JWT_SECRET`.
-- Change default seed passwords before opening external network ports.
-- Deploy an external managed PostgreSQL 14+ instance with automated backups.
-- Provide a valid licensed Unicode Kannada font (`.ttf`) in `KANNADA_FONT_PATH` for PDF export rendering.
-- Configure Redis for high-throughput image worker queues.
+### Option 2: Manual Web Service Deployment on Render
+
+If you prefer to configure the services manually on Render:
+
+#### 1. Create the Database:
+- In Render Dashboard, click **New +** > **PostgreSQL**.
+- Name: `vachana-kranti-db`
+- Database: `vachana_kranti`
+- User: `vachana`
+- Plan: **Free** (or Starter)
+- Click **Create Database**. Copy the **Internal Database URL**.
+
+#### 2. Create the Web Service:
+- Click **New +** > **Web Service**.
+- Connect your GitHub repository.
+- Configure:
+  - **Environment**: `Node`
+  - **Build Command**: `npm install && npm run build`
+  - **Start Command**: `npm run start`
+  - **Health Check Path**: `/api/health`
+- Under **Environment Variables**, add the variables listed below.
+
+---
+
+## 🔑 Render Environment Variables Reference
+
+Configure these environment variables in your Render Web Service dashboard (**Environment** tab):
+
+| Variable Name | Required | Default / Recommended Value | Description |
+|---|---|---|---|
+| `DATABASE_URL` | **Yes** | `postgresql://...` *(Render Internal Database URL)* | PostgreSQL connection URI from your Render PostgreSQL instance. |
+| `NODE_ENV` | **Yes** | `production` | Enables production optimizations, caching, and strict security checks. |
+| `JWT_SECRET` | **Yes** | *(Generate random 32+ char string)* | Cryptographic key used to sign and verify user JWT sessions. |
+| `JWT_EXPIRES_IN` | No | `8h` | Lifetime duration for user authentication tokens. |
+| `WEB_ORIGIN` | **Yes** | `*` *(or `https://<your-service>.onrender.com`)* | Allowed origins for Cross-Origin Resource Sharing (CORS). |
+| `STORAGE_ROOT` | No | `./storage` | Filesystem folder where uploaded images and PDFs are stored. |
+| `REDIS_URL` | No | *(Leave empty)* | Optional Redis queue. Leave blank to use the built-in in-process fallback. |
+| `MAX_UPLOAD_MB` | No | `25` | Maximum allowed image upload size in megabytes. |
+| `MAX_IMAGE_PIXELS` | No | `40000000` | Maximum decoded image resolution in pixels (prevents decompression bombs). |
+| `MAX_PDF_MB` | No | `80` | Maximum allowed PDF edition upload size in megabytes. |
+| `SEED_ADMIN_EMAIL` | **Yes** | `admin@vachanakranti.local` *(or your email)* | Initial administrator login email (created on first boot). |
+| `SEED_ADMIN_PASSWORD` | **Yes** | `YourStrongAdminPassword123!` *(min 12 chars)* | Initial administrator password. |
+| `SEED_EDITOR_EMAIL` | No | `editor@vachanakranti.local` | Initial editor login email. |
+| `SEED_EDITOR_PASSWORD`| No | `YourStrongEditorPassword123!` *(min 12 chars)* | Initial editor password. |
+| `TRUST_PROXY` | **Yes** | `true` | Allows Express to correctly identify client IPs behind Render's reverse proxy. |
+| `PORT` | Auto | `10000` *(Render sets this automatically)* | Port the Node.js server listens on. Do not override manually. |
+| `KANNADA_FONT_PATH` | Optional | `/path/to/kannada.ttf` | Path to licensed Kannada TTF font if exporting composed Kannada PDFs. |
+
 
 ---
 

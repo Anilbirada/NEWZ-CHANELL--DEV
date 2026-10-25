@@ -1,24 +1,24 @@
 import 'dotenv/config';
 import { Queue, Worker } from 'bullmq';
-import IORedis from 'ioredis';
+import { Redis } from 'ioredis';
 import { processMediaAsset } from './mediaProcessor.js';
 
 const queueName = 'vachana-image-processing';
 let queue: Queue | null = null;
 let worker: Worker | null = null;
-let redisConnection: IORedis | null = null;
+let redisConnection: Redis | null = null;
 
 export async function initializeImageQueue() {
   if (!process.env.REDIS_URL) {
     console.warn('REDIS_URL not configured: image processing will use a local in-process fallback. Configure Redis for resilient production jobs.');
     return;
   }
-  redisConnection = new IORedis(process.env.REDIS_URL, { maxRetriesPerRequest: null, enableReadyCheck: true });
-  redisConnection.on('error', (error) => console.error('Image queue Redis error:', error.message));
+  redisConnection = new Redis(process.env.REDIS_URL, { maxRetriesPerRequest: null, enableReadyCheck: true });
+  redisConnection.on('error', (error: Error) => console.error('Image queue Redis error:', error.message));
   queue = new Queue(queueName, { connection: redisConnection, defaultJobOptions: { attempts: 3, backoff: { type: 'exponential', delay: 1500 }, removeOnComplete: 500, removeOnFail: 1000 } });
   worker = new Worker(queueName, async (job) => processMediaAsset(String(job.data.assetId)), { connection: redisConnection, concurrency: Number(process.env.IMAGE_WORKER_CONCURRENCY || 2) });
   worker.on('completed', (job, result) => console.info('Image processing completed:', job.id, result));
-  worker.on('failed', (job, error) => console.error('Image processing job failed:', job?.id, error.message));
+  worker.on('failed', (job, error: Error) => console.error('Image processing job failed:', job?.id, error.message));
   await queue.waitUntilReady();
   await worker.waitUntilReady();
   console.info('Image processing queue connected.');
