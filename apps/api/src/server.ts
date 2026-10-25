@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import express from 'express';
+import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
@@ -23,12 +23,12 @@ app.disable('x-powered-by');
 app.set('trust proxy',process.env.TRUST_PROXY==='false'?false:1);
 app.use(helmet({crossOriginResourcePolicy:{policy:'cross-origin'},contentSecurityPolicy:process.env.NODE_ENV==='production'?undefined:false}));
 const origins=(process.env.WEB_ORIGIN||'http://localhost:5173').split(',').map(v=>v.trim()).filter(Boolean);
-app.use(cors({origin:(origin,cb)=>{if(!origin||origins.includes('*')||origins.includes(origin)){cb(null,true);return;}cb(new Error('Origin is not allowed by CORS.'));},credentials:true,methods:['GET','POST','PUT','PATCH','DELETE','OPTIONS']}));
+app.use(cors({origin:(origin: string | undefined, cb: (err: Error | null, allow?: boolean) => void)=>{if(!origin||origins.includes('*')||origins.includes(origin)){cb(null,true);return;}cb(new Error('Origin is not allowed by CORS.'));},credentials:true,methods:['GET','POST','PUT','PATCH','DELETE','OPTIONS']}));
 app.use(express.json({limit:'1mb'}));
 app.use(express.urlencoded({extended:false,limit:'128kb'}));
 app.use(rateLimit({windowMs:15*60*1000,limit:Number(process.env.API_RATE_LIMIT||600),standardHeaders:'draft-7',legacyHeaders:false}));
 app.use('/api/auth',rateLimit({windowMs:15*60*1000,limit:20,standardHeaders:'draft-7',legacyHeaders:false}));
-app.get('/api/health',async(_req,res)=>{try{await query('SELECT 1');res.json({status:'ok',service:'vachana-kranti-api',database:'connected',time:new Date().toISOString()});}catch{res.status(503).json({status:'degraded',service:'vachana-kranti-api',database:'unavailable'});}});
+app.get('/api/health',async(_req: Request, res: Response)=>{try{await query('SELECT 1');res.json({status:'ok',service:'vachana-kranti-api',database:'connected',time:new Date().toISOString()});}catch{res.status(503).json({status:'degraded',service:'vachana-kranti-api',database:'unavailable'});}});
 app.use('/api/auth',authRouter);
 app.use('/api/dashboard',dashboardRouter);
 app.use('/api/articles',articleRouter);
@@ -40,7 +40,7 @@ app.use('/api/public/editions',publicEditionRouter);
 app.use('/api/advertisements',adsRouter);
 app.use('/api/public/advertisements',publicAdsRouter);
 
-app.use('/api',(_req,res)=>res.status(404).json({error:'API endpoint not found.'}));
+app.use('/api',(_req: Request, res: Response)=>res.status(404).json({error:'API endpoint not found.'}));
 
 const webDistCandidates = [
   path.resolve(process.cwd(), 'apps/web/dist'),
@@ -50,12 +50,12 @@ const webDistCandidates = [
 const webDistPath = webDistCandidates.find(p => fs.existsSync(p));
 if (webDistPath) {
   app.use(express.static(webDistPath));
-  app.get('*', (req, res, next) => {
+  app.get('*', (req: Request, res: Response, next: NextFunction) => {
     if (req.path.startsWith('/api')) return next();
     res.sendFile(path.join(webDistPath, 'index.html'));
   });
 }
-app.use((err:unknown,_req:express.Request,res:express.Response,_next:express.NextFunction)=>{
+app.use((err:unknown,_req: Request,res: Response,_next: NextFunction)=>{
   const error=err instanceof Error?err:new Error('Unexpected server error');
   console.error('[api-error]',error.message);
   if(error.message.includes('file too large')){res.status(413).json({error:'Upload exceeds the configured size limit.'});return;}

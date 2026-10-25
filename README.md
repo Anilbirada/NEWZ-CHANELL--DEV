@@ -276,7 +276,7 @@ If you prefer to configure the services manually on Render:
 - Connect your GitHub repository.
 - Configure:
   - **Environment**: `Node`
-  - **Build Command**: `npm install && npm run build`
+  - **Build Command**: `npm install --include=dev && npm run build`
   - **Start Command**: `npm run start`
   - **Health Check Path**: `/api/health`
 - Under **Environment Variables**, add the variables listed below.
